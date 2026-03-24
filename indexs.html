@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>MediSync | Hospital Management System</title>
+    <!-- Tailwind CSS + Font Awesome + Google Fonts + Chart.js -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f0f5fa; }
+        .transition-smooth { transition: all 0.2s ease; }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px -12px rgba(0, 0, 0, 0.15);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
+                    <i class="fas fa-hospital-user text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800 tracking-tight">MediSync<span class="text-blue-600"> HMS</span></h1>
+                    <p class="text-xs text-slate-500">Intelligent Hospital Management</p>
+                </div>
+            </div>
+            <div class="flex gap-2 bg-white/70 backdrop-blur-sm p-1 rounded-full shadow-sm border border-slate-200">
+                <button data-tab="dashboard" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold transition-smooth bg-blue-600 text-white shadow-sm"><i class="fas fa-chart-line mr-1"></i> Dashboard</button>
+                <button data-tab="patients" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold transition-smooth text-slate-700 hover:bg-slate-100"><i class="fas fa-users mr-1"></i> Patients</button>
+                <button data-tab="appointments" class="tab-btn px-5 py-2 rounded-full text-sm font-semibold transition-smooth text-slate-700 hover:bg-slate-100"><i class="fas fa-calendar-check mr-1"></i> Appointments</button>
+            </div>
+        </div>
+
+        <!-- Dashboard Panel -->
+        <div id="dashboardPanel" class="tab-panel">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+                <div class="bg-white rounded-2xl shadow-sm p-5 border-l-8 border-blue-500 card-hover transition-smooth">
+                    <div class="flex justify-between items-center">
+                        <div><p class="text-slate-500 text-sm font-medium">Total Patients</p><p id="statPatients" class="text-3xl font-bold text-slate-800 mt-1">0</p></div>
+                        <i class="fas fa-user-injured text-4xl text-blue-200"></i>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm p-5 border-l-8 border-emerald-500 card-hover">
+                    <div class="flex justify-between"><div><p class="text-slate-500 text-sm font-medium">Appointments</p><p id="statAppointments" class="text-3xl font-bold text-slate-800 mt-1">0</p></div><i class="fas fa-calendar-alt text-4xl text-emerald-200"></i></div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm p-5 border-l-8 border-amber-500 card-hover">
+                    <div class="flex justify-between"><div><p class="text-slate-500 text-sm font-medium">Medical Staff</p><p id="statDoctors" class="text-3xl font-bold text-slate-800 mt-1">5</p></div><i class="fas fa-user-md text-4xl text-amber-200"></i></div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm p-5 border-l-8 border-purple-500 card-hover">
+                    <div class="flex justify-between"><div><p class="text-slate-500 text-sm font-medium">Scheduled Today</p><p id="statToday" class="text-3xl font-bold text-slate-800 mt-1">0</p></div><i class="fas fa-clock text-4xl text-purple-200"></i></div>
+                </div>
+            </div>
+            <!-- Chart & Upcoming -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm p-5">
+                    <h2 class="text-lg font-semibold text-slate-700 mb-3"><i class="fas fa-chart-bar text-blue-500 mr-2"></i> Weekly Appointments Trend</h2>
+                    <canvas id="appointmentChart" height="200" class="w-full h-auto"></canvas>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm p-5">
+                    <h2 class="text-lg font-semibold text-slate-700 mb-3"><i class="fas fa-stethoscope text-blue-500 mr-2"></i> Upcoming Appointments</h2>
+                    <div id="upcomingList" class="space-y-3 max-h-64 overflow-y-auto pr-1">
+                        <p class="text-slate-400 text-sm text-center py-6">Loading appointments...</p>
+                    </div>
+                    <button id="viewAllAppointmentsBtn" class="mt-4 w-full text-center text-sm text-blue-600 font-medium hover:underline">View all appointments →</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Patients Panel -->
+        <div id="patientsPanel" class="tab-panel hidden">
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <h2 class="text-xl font-bold text-slate-800"><i class="fas fa-notes-medical text-blue-500 mr-2"></i>Patient Registry</h2>
+                    <div class="flex gap-3 w-full sm:w-auto">
+                        <div class="relative flex-1 sm:w-64"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i><input type="text" id="patientSearch" placeholder="Search name..." class="pl-9 pr-4 py-2 border border-slate-200 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"></div>
+                        <button id="openAddPatientBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm"><i class="fas fa-plus mr-1"></i> Add Patient</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-200">
+                        <thead class="bg-slate-50"><tr class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"><th class="px-6 py-3">Name</th><th class="px-6 py-3">Age/Gender</th><th class="px-6 py-3">Contact</th><th class="px-6 py-3">Address</th><th class="px-6 py-3 text-center">Actions</th></tr></thead>
+                        <tbody id="patientsTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+                    </table>
+                </div>
+                <div id="noPatientsMsg" class="py-12 text-center text-slate-400 hidden">No patients found. Click "Add Patient" to register.</div>
+            </div>
+        </div>
+
+        <!-- Appointments Panel -->
+        <div id="appointmentsPanel" class="tab-panel hidden">
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <h2 class="text-xl font-bold text-slate-800"><i class="fas fa-calendar-plus text-blue-500 mr-2"></i>Appointment Scheduler</h2>
+                    <div class="flex gap-3 w-full sm:w-auto"><select id="statusFilter" class="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white"><option value="all">All status</option><option value="Scheduled">Scheduled</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option></select><button id="openAddAppointmentBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium"><i class="fas fa-plus mr-1"></i> Schedule</button></div>
+                </div>
+                <div class="overflow-x-auto"><table class="min-w-full divide-y divide-slate-200"><thead class="bg-slate-50"><tr class="text-left text-xs font-semibold text-slate-500 uppercase"><th class="px-6 py-3">Patient</th><th class="px-6 py-3">Doctor</th><th class="px-6 py-3">Date</th><th class="px-6 py-3">Time</th><th class="px-6 py-3">Status</th><th class="px-6 py-3 text-center">Actions</th></tr></thead><tbody id="appointmentsTableBody"></tbody></table></div>
+                <div id="noAppointmentsMsg" class="py-12 text-center text-slate-400 hidden">No appointments scheduled.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PATIENT (Add/Edit) -->
+    <div id="patientModal" class="fixed inset-0 flex items-center justify-center z-50 hidden transition-all">
+        <div class="absolute inset-0 modal-backdrop" id="modalBackdropPatient"></div>
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl z-10 transform transition-all p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold" id="patientModalTitle">Add New Patient</h3><button id="closePatientModal" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button></div>
+            <form id="patientForm">
+                <input type="hidden" id="patientId" value="">
+                <div class="mb-3"><label class="block text-sm font-medium text-slate-700 mb-1">Full Name *</label><input type="text" id="patName" required class="w-full border border-slate-300 rounded-xl px-4 py-2 focus:ring-blue-500 focus:border-blue-500"></div>
+                <div class="grid grid-cols-2 gap-3 mb-3"><div><label class="block text-sm font-medium text-slate-700 mb-1">Age *</label><input type="number" id="patAge" required class="w-full border border-slate-300 rounded-xl px-4 py-2"></div><div><label class="block text-sm font-medium text-slate-700 mb-1">Gender</label><select id="patGender" class="w-full border border-slate-300 rounded-xl px-4 py-2"><option>Male</option><option>Female</option><option>Other</option></select></div></div>
+                <div class="mb-3"><label class="block text-sm font-medium text-slate-700 mb-1">Phone *</label><input type="tel" id="patPhone" required class="w-full border border-slate-300 rounded-xl px-4 py-2"></div>
+                <div class="mb-4"><label class="block text-sm font-medium text-slate-700 mb-1">Address</label><input type="text" id="patAddress" class="w-full border border-slate-300 rounded-xl px-4 py-2"></div>
+                <div class="flex gap-3 justify-end"><button type="button" id="cancelPatientBtn" class="px-4 py-2 border border-slate-300 rounded-xl text-slate-600">Cancel</button><button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium">Save Patient</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: APPOINTMENT (Add/Edit) -->
+    <div id="appointmentModal" class="fixed inset-0 flex items-center justify-center z-50 hidden transition-all">
+        <div class="absolute inset-0 modal-backdrop" id="modalBackdropAppointment"></div>
+        <div class="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl p-6">
+            <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold" id="appointmentModalTitle">Schedule Appointment</h3><button id="closeAppointmentModal" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button></div>
+            <form id="appointmentForm">
+                <input type="hidden" id="appointmentId" value="">
+                <div class="mb-3"><label class="block text-sm font-medium text-slate-700 mb-1">Patient *</label><select id="appPatientId" required class="w-full border border-slate-300 rounded-xl px-4 py-2"><option value="">-- Select Patient --</option></select></div>
+                <div class="mb-3"><label class="block text-sm font-medium text-slate-700 mb-1">Doctor *</label><select id="appDoctor" required class="w-full border border-slate-300 rounded-xl px-4 py-2"></select></div>
+                <div class="grid grid-cols-2 gap-3 mb-3"><div><label class="block text-sm font-medium text-slate-700 mb-1">Date *</label><input type="date" id="appDate" required class="w-full border border-slate-300 rounded-xl px-4 py-2"></div><div><label class="block text-sm font-medium text-slate-700 mb-1">Time *</label><input type="time" id="appTime" required class="w-full border border-slate-300 rounded-xl px-4 py-2"></div></div>
+                <div class="mb-4"><label class="block text-sm font-medium text-slate-700 mb-1">Status</label><select id="appStatus" class="w-full border border-slate-300 rounded-xl px-4 py-2"><option>Scheduled</option><option>Completed</option><option>Cancelled</option></select></div>
+                <div class="flex gap-3 justify-end"><button type="button" id="cancelAppointmentBtn" class="px-4 py-2 border border-slate-300 rounded-xl text-slate-600">Cancel</button><button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium">Save Appointment</button></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ---------- DATA ----------
+        let patients = [];
+        let appointments = [];
+        const doctorsList = ["Dr. Sarah Johnson (Cardiology)", "Dr. Michael Lee (Neurology)", "Dr. Emily Davis (Pediatrics)", "Dr. Robert Brown (Orthopedics)", "Dr. Olivia Wilson (General Medicine)"];
+        
+        let chartInstance = null;
+        let activeTab = "dashboard";
+
+        // Helper: load/save localstorage
+        function saveData() {
+            localStorage.setItem("hms_patients", JSON.stringify(patients));
+            localStorage.setItem("hms_appointments", JSON.stringify(appointments));
+        }
+
+        function loadData() {
+            const storedPatients = localStorage.getItem("hms_patients");
+            const storedAppointments = localStorage.getItem("hms_appointments");
+            if(storedPatients) patients = JSON.parse(storedPatients);
+            else {
+                patients = [
+                    { id: 1001, name: "John Carter", age: 45, gender: "Male", phone: "+1 555 239 8765", address: "221B Baker Street" },
+                    { id: 1002, name: "Emily Clark", age: 32, gender: "Female", phone: "+1 555 987 1234", address: "45 Maple Avenue" },
+                    { id: 1003, name: "Michael Torres", age: 58, gender: "Male", phone: "+1 555 445 6677", address: "12 Oakwood Lane" }
+                ];
+            }
+            if(storedAppointments) appointments = JSON.parse(storedAppointments);
+            else {
+                const today = new Date().toISOString().slice(0,10);
+                appointments = [
+                    { id: 5001, patientId: 1001, doctor: "Dr. Sarah Johnson (Cardiology)", date: today, time: "10:30", status: "Scheduled" },
+                    { id: 5002, patientId: 1002, doctor: "Dr. Michael Lee (Neurology)", date: today, time: "14:00", status: "Scheduled" },
+                    { id: 5003, patientId: 1003, doctor: "Dr. Emily Davis (Pediatrics)", date: "2025-03-28", time: "09:15", status: "Scheduled" }
+                ];
+            }
+        }
+
+        // Helper: get patient name by id
+        function getPatientName(patientId) {
+            const p = patients.find(p => p.id == patientId);
+            return p ? p.name : "Unknown Patient";
+        }
+
+        // Render patients table
+        function renderPatientsTable(filter = "") {
+            const tbody = document.getElementById("patientsTableBody");
+            const noMsg = document.getElementById("noPatientsMsg");
+            let filtered = patients.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+            if(filtered.length === 0) { tbody.innerHTML = ""; noMsg.classList.remove("hidden"); return; }
+            noMsg.classList.add("hidden");
+            tbody.innerHTML = filtered.map(pat => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-3 font-medium text-slate-800">${escapeHtml(pat.name)}</td>
+                    <td class="px-6 py-3">${pat.age} / ${pat.gender}</td>
+                    <td class="px-6 py-3">${escapeHtml(pat.phone)}</td>
+                    <td class="px-6 py-3 text-slate-500">${escapeHtml(pat.address || "-")}</td>
+                    <td class="px-6 py-3 text-center space-x-2"><button onclick="editPatient(${pat.id})" class="text-blue-600 hover:text-blue-800"><i class="fas fa-edit"></i></button><button onclick="deletePatient(${pat.id})" class="text-red-500 hover:text-red-700 ml-2"><i class="fas fa-trash-alt"></i></button></td>
+                </tr>
+            `).join("");
+        }
+
+        function renderAppointmentsTable() {
+            const statusFilter = document.getElementById("statusFilter")?.value || "all";
+            let filtered = appointments.filter(a => statusFilter === "all" ? true : a.status === statusFilter);
+            const tbody = document.getElementById("appointmentsTableBody");
+            const noMsg = document.getElementById("noAppointmentsMsg");
+            if(filtered.length === 0) { tbody.innerHTML = ""; noMsg.classList.remove("hidden"); return; }
+            noMsg.classList.add("hidden");
+            tbody.innerHTML = filtered.map(app => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-3 font-medium">${escapeHtml(getPatientName(app.patientId))}</td>
+                    <td class="px-6 py-3">${escapeHtml(app.doctor)}</td>
+                    <td class="px-6 py-3">${app.date}</td>
+                    <td class="px-6 py-3">${app.time}</td>
+                    <td class="px-6 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${app.status === 'Scheduled' ? 'bg-blue-100 text-blue-700' : app.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${app.status}</span></td>
+                    <td class="px-6 py-3 text-center"><button onclick="editAppointment(${app.id})" class="text-blue-600 hover:text-blue-800 mr-2"><i class="fas fa-edit"></i></button><button onclick="deleteAppointment(${app.id})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button></td>
+                </tr>
+            `).join("");
+        }
+
+        // Dashboard: stats + chart + upcoming
+        function updateDashboardStats() {
+            document.getElementById("statPatients").innerText = patients.length;
+            document.getElementById("statAppointments").innerText = appointments.length;
+            document.getElementById("statDoctors").innerText = doctorsList.length;
+            const today = new Date().toISOString().slice(0,10);
+            const todayCount = appointments.filter(a => a.date === today).length;
+            document.getElementById("statToday").innerText = todayCount;
+            // upcoming list
+            const upcoming = [...appointments].sort((a,b)=>a.date.localeCompare(b.date)).slice(0,4);
+            const container = document.getElementById("upcomingList");
+            if(upcoming.length === 0) container.innerHTML = '<div class="text-slate-400 text-sm text-center py-4">No upcoming appointments</div>';
+            else container.innerHTML = upcoming.map(app => `<div class="flex justify-between items-center border-b border-slate-100 pb-2"><div><p class="font-medium text-slate-700">${escapeHtml(getPatientName(app.patientId))}</p><p class="text-xs text-slate-400">${app.date} at ${app.time}</p></div><span class="text-xs bg-slate-100 px-2 py-1 rounded-full">${app.doctor.split(' ').slice(0,2).join(' ')}</span></div>`).join("");
+            renderChart();
+        }
+
+        function renderChart() {
+            const canvas = document.getElementById("appointmentChart");
+            if(!canvas) return;
+            const ctx = canvas.getContext("2d");
+            const last7Days = [];
+            for(let i=6;i>=0;i--) { let d = new Date(); d.setDate(d.getDate()-i); last7Days.push(d.toISOString().slice(0,10)); }
+            const counts = last7Days.map(date => appointments.filter(a => a.date === date).length);
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, { type: 'bar', data: { labels: last7Days.map(d=>d.slice(5)), datasets: [{ label: 'Appointments', data: counts, backgroundColor: '#3b82f6', borderRadius: 8, barPercentage: 0.6 }] }, options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } } });
+        }
+
+        // CRUD Patients
+        window.editPatient = (id) => {
+            const patient = patients.find(p => p.id === id);
+            if(patient) {
+                document.getElementById("patientId").value = patient.id;
+                document.getElementById("patName").value = patient.name;
+                document.getElementById("patAge").value = patient.age;
+                document.getElementById("patGender").value = patient.gender;
+                document.getElementById("patPhone").value = patient.phone;
+                document.getElementById("patAddress").value = patient.address || "";
+                document.getElementById("patientModalTitle").innerText = "Edit Patient";
+                document.getElementById("patientModal").classList.remove("hidden");
+            }
+        };
+        window.deletePatient = (id) => {
+            if(confirm("Delete patient? Their appointments will also be removed.")) {
+                patients = patients.filter(p => p.id !== id);
+                appointments = appointments.filter(a => a.patientId !== id);
+                saveData();
+                renderPatientsTable(document.getElementById("patientSearch")?.value || "");
+                renderAppointmentsTable();
+                updateDashboardStats();
+            }
+        };
+        function addUpdatePatient(e) {
+            e.preventDefault();
+            const id = document.getElementById("patientId").value;
+            const name = document.getElementById("patName").value.trim();
+            const age = parseInt(document.getElementById("patAge").value);
+            const gender = document.getElementById("patGender").value;
+            const phone = document.getElementById("patPhone").value.trim();
+            const address = document.getElementById("patAddress").value;
+            if(!name || !age || !phone) { alert("Name, Age & Phone required"); return; }
+            if(id) { // update
+                const index = patients.findIndex(p => p.id == id);
+                if(index!==-1) patients[index] = { ...patients[index], name, age, gender, phone, address };
+            } else {
+                const newId = Date.now();
+                patients.push({ id: newId, name, age, gender, phone, address });
+            }
+            saveData();
+            closePatientModal();
+            renderPatientsTable(document.getElementById("patientSearch")?.value || "");
+            renderAppointmentsTable(); // for patient name changes
+            updateDashboardStats();
+        }
+        function closePatientModal() { document.getElementById("patientModal").classList.add("hidden"); document.getElementById("patientForm").reset(); document.getElementById("patientId").value = ""; document.getElementById("patientModalTitle").innerText = "Add New Patient"; }
+
+        // CRUD Appointments
+        window.editAppointment = (id) => {
+            const app = appointments.find(a => a.id === id);
+            if(app) {
+                document.getElementById("appointmentId").value = app.id;
+                document.getElementById("appPatientId").value = app.patientId;
+                document.getElementById("appDoctor").value = app.doctor;
+                document.getElementById("appDate").value = app.date;
+                document.getElementById("appTime").value = app.time;
+                document.getElementById("appStatus").value = app.status;
+                document.getElementById("appointmentModalTitle").innerText = "Edit Appointment";
+                populateDoctorSelect();
+                populatePatientSelectForAppointment();
+                document.getElementById("appointmentModal").classList.remove("hidden");
+            }
+        };
+        window.deleteAppointment = (id) => {
+            if(confirm("Remove this appointment?")) {
+                appointments = appointments.filter(a => a.id !== id);
+                saveData();
+                renderAppointmentsTable();
+                updateDashboardStats();
+            }
+        };
+        function addUpdateAppointment(e) {
+            e.preventDefault();
+            const id = document.getElementById("appointmentId").value;
+            const patientId = parseInt(document.getElementById("appPatientId").value);
+            const doctor = document.getElementById("appDoctor").value;
+            const date = document.getElementById("appDate").value;
+            const time = document.getElementById("appTime").value;
+            const status = document.getElementById("appStatus").value;
+            if(!patientId || !doctor || !date || !time) { alert("All fields required"); return; }
+            if(id) {
+                const idx = appointments.findIndex(a => a.id == id);
+                if(idx!==-1) appointments[idx] = { ...appointments[idx], patientId, doctor, date, time, status };
+            } else {
+                const newId = Date.now();
+                appointments.push({ id: newId, patientId, doctor, date, time, status });
+            }
+            saveData();
+            closeAppointmentModal();
+            renderAppointmentsTable();
+            updateDashboardStats();
+        }
+        function closeAppointmentModal() { document.getElementById("appointmentModal").classList.add("hidden"); document.getElementById("appointmentForm").reset(); document.getElementById("appointmentId").value = ""; document.getElementById("appointmentModalTitle").innerText = "Schedule Appointment"; }
+        function populateDoctorSelect() { const select = document.getElementById("appDoctor"); select.innerHTML = doctorsList.map(d => `<option value="${d}">${d}</option>`).join(""); }
+        function populatePatientSelectForAppointment() { const select = document.getElementById("appPatientId"); select.innerHTML = '<option value="">-- Select Patient --</option>' + patients.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${p.age})</option>`).join(""); }
+
+        // Helpers
+        function escapeHtml(str) { if(!str) return ""; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+
+        // Tab switching
+        function setActiveTab(tab) {
+            activeTab = tab;
+            document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.add("hidden"));
+            document.getElementById(`${tab}Panel`).classList.remove("hidden");
+            document.querySelectorAll(".tab-btn").forEach(btn => { btn.classList.remove("bg-blue-600", "text-white", "shadow-sm"); btn.classList.add("text-slate-700", "hover:bg-slate-100"); });
+            const activeBtn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+            if(activeBtn) { activeBtn.classList.add("bg-blue-600", "text-white", "shadow-sm"); activeBtn.classList.remove("text-slate-700"); }
+            if(tab === "dashboard") updateDashboardStats();
+            if(tab === "patients") renderPatientsTable(document.getElementById("patientSearch")?.value || "");
+            if(tab === "appointments") renderAppointmentsTable();
+        }
+
+        // Event binding
+        document.addEventListener("DOMContentLoaded", () => {
+            loadData();
+            renderPatientsTable("");
+            renderAppointmentsTable();
+            updateDashboardStats();
+            setActiveTab("dashboard");
+            // Search patients
+            document.getElementById("patientSearch")?.addEventListener("input", (e) => renderPatientsTable(e.target.value));
+            document.getElementById("statusFilter")?.addEventListener("change", () => renderAppointmentsTable());
+            document.getElementById("openAddPatientBtn")?.addEventListener("click", () => { document.getElementById("patientModalTitle").innerText = "Add New Patient"; document.getElementById("patientForm").reset(); document.getElementById("patientId").value = ""; document.getElementById("patientModal").classList.remove("hidden"); });
+            document.getElementById("openAddAppointmentBtn")?.addEventListener("click", () => { if(patients.length===0) { alert("Please add at least one patient before scheduling."); return; } populateDoctorSelect(); populatePatientSelectForAppointment(); document.getElementById("appointmentForm").reset(); document.getElementById("appointmentId").value = ""; document.getElementById("appointmentModalTitle").innerText = "Schedule Appointment"; document.getElementById("appointmentModal").classList.remove("hidden"); });
+            document.getElementById("closePatientModal")?.addEventListener("click", closePatientModal);
+            document.getElementById("cancelPatientBtn")?.addEventListener("click", closePatientModal);
+            document.getElementById("modalBackdropPatient")?.addEventListener("click", closePatientModal);
+            document.getElementById("closeAppointmentModal")?.addEventListener("click", closeAppointmentModal);
+            document.getElementById("cancelAppointmentBtn")?.addEventListener("click", closeAppointmentModal);
+            document.getElementById("modalBackdropAppointment")?.addEventListener("click", closeAppointmentModal);
+            document.getElementById("patientForm")?.addEventListener("submit", addUpdatePatient);
+            document.getElementById("appointmentForm")?.addEventListener("submit", addUpdateAppointment);
+            document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", (e) => setActiveTab(btn.dataset.tab)));
+            document.getElementById("viewAllAppointmentsBtn")?.addEventListener("click", () => setActiveTab("appointments"));
+        });
+    </script>
+</body>
+</html>
